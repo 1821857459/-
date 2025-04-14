@@ -53,3 +53,4 @@ webcolors==24.11.1
 wheel==0.44.0
 xgboost==2.1.4
 XlsxWriter==3.2.2
+scikit-learn==3.5.0
