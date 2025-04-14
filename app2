@@ -13,7 +13,7 @@ from collections import Counter
 st.set_page_config(page_title="High Magnesium Andesite Rock Classification - Ensemble Model", layout="wide")
 
 # 1. 加载训练数据
-train_file_path = r"D:\JupyterNotebook\lab\FAB-Boninite-HMA-IAT-CA.xlsx"
+train_file_path = r"data.xlsx"
 train_data = pd.read_excel(train_file_path)
 
 # 2. 数据预处理
@@ -80,7 +80,7 @@ if uploaded_file is not None:
     st.write(input_data)
 
     # 7. 背景图散点图展示
-    img_path = r"D:\JupyterNotebook\lab\MgO-SiO2.jpg"
+    img_path = r"MgO-SiO2.jpg"
     try:
         img = Image.open(img_path)
         if 'SiO2' in input_data.columns and 'MgO' in input_data.columns:
