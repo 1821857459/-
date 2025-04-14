@@ -1,4 +1,25 @@
-import streamlit as st
+import subprocess
+import sys
+
+# 需要的依赖列表
+required_packages = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "scipy",
+    "Pillow",
+    "openpyxl",  # 处理Excel文件
+    "streamlit"
+]
+
+# 安装缺失的依赖
+for package in required_packages:
+    try:
+        __import__(package if package != "scikit-learn" else "sklearn")
+    except ImportError:
+        print(f"🔧 正在安装缺失的依赖: {package} ...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
