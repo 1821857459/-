@@ -85,23 +85,24 @@ if uploaded_file is not None:
         else:
             st.error("The input Excel file is missing SiO2 or MgO columns.")
 
-        # Create the scatter plot
+        # Adjust the extent parameters based on the actual coordinates of the image
+        # Ensure that the extent fits the actual range of SiO2 and MgO in your data
         plt.figure(figsize=(10, 10))
-        
-        # Display background image and set coordinates for SiO2 vs MgO range
         plt.imshow(img, extent=[45, 70, 0, 25], aspect='auto', zorder=0)
 
         unique_classes = np.unique(predicted_classes)
         cmap = plt.get_cmap('tab10')
         class_colors = {class_name: cmap(i) for i, class_name in enumerate(unique_classes)}
 
-        # Plot each class's points
+        # Plot each class's points within the defined coordinate range
         for class_name in unique_classes:
             class_indices = predicted_classes == class_name
             plt.scatter(sio2[class_indices], mgo[class_indices],
                         color=class_colors[class_name], label=class_name, alpha=0.7, s=150, edgecolor='k', zorder=1)
 
         # Set plot settings
+        plt.xlim(45, 70)  # Limit the x-axis to match the extent of the image
+        plt.ylim(0, 25)   # Limit the y-axis to match the extent of the image
         plt.xlabel('SiO2', fontsize=16)
         plt.ylabel('MgO', fontsize=16)
         plt.title('Scatter Plot of SiO2 and MgO by Class', fontsize=18)
