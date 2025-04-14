@@ -1,1 +1,139 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
+from PIL import Image
+from collections import Counter
 
+# 设置页面
+st.set_page_config(page_title="High Magnesium Andesite Rock Classification - Ensemble Model", layout="wide")
+
+# 1. 加载训练数据
+train_file_path = r"D:\JupyterNotebook\lab\FAB-Boninite-HMA-IAT-CA.xlsx"
+train_data = pd.read_excel(train_file_path)
+
+# 2. 数据预处理
+X_train = train_data.drop(train_data.columns[0], axis=1)
+y_train = train_data.iloc[:, 0]
+
+label_encoder = LabelEncoder()
+y_train_encoded = label_encoder.fit_transform(y_train)
+
+# 3. 构建模型
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+knn_model = KNeighborsClassifier(n_neighbors=3)
+
+rf_model.fit(X_train, y_train_encoded)
+knn_model.fit(X_train, y_train_encoded)
+
+# 4. 文件上传
+uploaded_file = st.file_uploader("Upload a new Excel file for prediction", type=["xlsx"])
+if uploaded_file is not None:
+    input_data = pd.read_excel(uploaded_file)
+
+    # 5. 列名匹配处理
+    matching_columns = {}
+    for col_train in X_train.columns:
+        for col_input in input_data.columns:
+            if col_input.lower().startswith(col_train.lower()):
+                matching_columns[col_train] = col_input
+                break
+        if col_train not in matching_columns:
+            matching_columns[col_train] = None
+
+    X_input = pd.DataFrame()
+    for col_train, col_input in matching_columns.items():
+        if col_input is not None:
+            X_input[col_train] = input_data[col_input]
+        else:
+            X_input[col_train] = 0
+
+    # 6. 预测 - 使用集成算法
+    rf_preds = rf_model.predict(X_input)
+    knn_preds = knn_model.predict(X_input)
+
+    # 多数投票融合
+    final_preds = []
+    confidence_scores = []
+    for rf_p, knn_p in zip(rf_preds, knn_preds):
+        votes = [rf_p, knn_p]
+        most_common = Counter(votes).most_common(1)[0]
+        final_preds.append(most_common[0])
+        confidence_scores.append(most_common[1] / len(votes))  # 比例，最多为1.0，最少为0.5
+
+    # 解码类别
+    final_preds_decoded = label_encoder.inverse_transform(final_preds)
+    rf_preds_decoded = label_encoder.inverse_transform(rf_preds)
+    knn_preds_decoded = label_encoder.inverse_transform(knn_preds)
+
+    # 添加结果到表格
+    input_data['RF Prediction'] = rf_preds_decoded
+    input_data['KNN Prediction'] = knn_preds_decoded
+    input_data['Final Prediction'] = final_preds_decoded
+    input_data['Confidence'] = confidence_scores
+
+    st.subheader("Prediction Results")
+    st.write(input_data)
+
+    # 7. 背景图散点图展示
+    img_path = r"D:\JupyterNotebook\lab\MgO-SiO2.jpg"
+    try:
+        img = Image.open(img_path)
+        if 'SiO2' in input_data.columns and 'MgO' in input_data.columns:
+            sio2 = input_data['SiO2']
+            mgo = input_data['MgO']
+
+            plt.figure(figsize=(10, 10))
+            plt.imshow(img, extent=[45, 70, 0, 25])
+
+            unique_classes = np.unique(final_preds_decoded)
+            cmap = plt.get_cmap('tab10')
+            class_colors = {cls: cmap(i) for i, cls in enumerate(unique_classes)}
+
+            for cls in unique_classes:
+                idx = input_data['Final Prediction'] == cls
+                plt.scatter(sio2[idx], mgo[idx], color=class_colors[cls], label=cls, alpha=0.6, s=300)
+
+            plt.xlabel('SiO₂', fontsize=16)
+            plt.ylabel('MgO', fontsize=16)
+            plt.title('SiO₂ vs MgO by Predicted Class', fontsize=18)
+            plt.legend(ncol=5, loc='upper right')
+            plt.gca().axes.get_xaxis().set_visible(False)
+            plt.gca().axes.get_yaxis().set_visible(False)
+            st.pyplot(plt)
+        else:
+            st.warning("SiO₂ or MgO column not found for scatter plot.")
+    except:
+        st.error("Background image not found or failed to load.")
+
+    # 8. 置信度分布图
+    confidences = np.array(confidence_scores)
+    for cls in unique_classes:
+        cls_conf = confidences[input_data['Final Prediction'] == cls]
+
+        plt.figure(figsize=(10, 6))
+        plt.hist(cls_conf, bins=10, density=True, alpha=0.7, color=class_colors[cls], label=f'Class: {cls}')
+
+        if len(cls_conf) > 1:
+            density = gaussian_kde(cls_conf)
+            xs = np.linspace(min(cls_conf), max(cls_conf), 200)
+            plt.plot(xs, density(xs), 'r-', label='Fitting Curve')
+
+        plt.xlabel('Confidence', fontsize=14)
+        plt.ylabel('Density', fontsize=14)
+        plt.title(f'Confidence Distribution for {cls}', fontsize=16)
+        plt.grid(True)
+        plt.legend()
+
+        # 保存 & 显示
+        filename = f'{cls}_confidence_distribution.png'
+        plt.savefig(filename)
+        plt.close()
+        st.image(filename, caption=f'Confidence Distribution for {cls}')
+
+# 加载提示
+st.success("Model trained: Random Forest + KNN (K=3) Ensemble")
