@@ -19,7 +19,8 @@ for package in required_packages:
         __import__(package if package != "scikit-learn" else "sklearn")
     except ImportError:
         print(f"🔧 正在安装缺失的依赖: {package} ...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])import streamlit as st
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
